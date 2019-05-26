@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset = "utf-8" />
+   <title>WebSocket Chat Index/Login Page</title>
+   <style>
+   </style>
+</head>
+<body>
+
+
+<script language = "javascript" type = "text/javascript">
+      //var wsUri = "ws://echo.websocket.org/";
+	  var wsUri = "ws://localhost:1234/";
+      var output;
+	  var parsedResponse;
+	  var privMessageToUserID ;
+		var privMessageToUser ;
+		output = document.getElementById("output");
+      function init() {
+         output = document.getElementById("output");
+		 output.innerHTML="NOT CONNECTED";
+		  websocket = new WebSocket(wsUri);
+         websocket.onopen = function(evt) {
+		 output.innerHTML="(id: test password:test)</br>";
+                output.innerHTML+="CONNECTED To Server (Ready to Login) ";
+				output.style.color = "green"
+				//client sayfaya girer girmez sag tarafta online/offline listesini gorecek.
+				//BUna ek olarak Connection Statusunde bir degisiklik olursa CONNECTED yerine kırmızı NOT CONNECTED yazacak
+				//	ornegin: Node kapatilirsa veya herhangi bir sebepten connection düşerse.
+				
+				//User List ve Connection Status her iki saniyede bir guncellenecek.
+				refreshFunctions();
+				
+         };
+		 
+		 websocket.onmessage = function (event) {
+		   var demo = document.getElementById("demo");
+		   var privateMessageArea = document.getElementById("messagePrivateArea");
+		   var users = document.getElementById("users");
+           output.innerHTML+=event.data +"<br/>";
+		   parsedResponse = JSON.parse(event.data);
+		   
+		   if ( parsedResponse.response == "valid"){
+		   output.innerHTML += 'SUCCESS';
+		   window.location.href = 'chat.html';
+		   }
+		   else 
+		   window.alert("Wrong Username or Password!");
+		   
+         }
+		 
+		 }
+		 window.addEventListener("load", init, false);
+		 
+		 function sendLoginData() {
+		var id = document.getElementById("txtid");
+		var pass = document.getElementById("txtpassword");
+        //websocket.send(textsend.value);
+		/*
+		websocket.send(JSON.stringify({
+  id: "client1"
+}));*/
+
+// Tell the server we want to send something to the other client
+		var data = {
+			"to": "passwordcheck",
+			"textid": id.value,
+			"textpass": pass.value
+		};
+		/*var data = { "type" : "text", "message" : "Hello" };*/
+		
+		//to Test
+		//demo.innerHTML+=JSON.stringify(data)+"<br/>";
+		var message = JSON.stringify(data);
+		
+		websocket.send(message);
+      }
+
+
+</script>
+
+
+<div id = "output"></div>
+
+
+
+
+ID: <input type="text" id="txtid"> 
+</br>
+Password: <input type="text" id="txtpassword">
+</br>
+<button type="button" onclick="sendLoginData()">Login</button>
+</br>
+<a href="register.html" >Register </a>
+</body>

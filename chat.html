@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+   <meta charset = "utf-8" />
+   <title>WebSocket Test</title>
+   <style>
+table.blueTable {
+  font-family: Georgia, serif;
+  border: 4px solid #1C6EA4;
+  background-color: #EEEEEE;
+  width: 90%;
+  height: 250px;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+table.blueTable td, table.blueTable th {
+  border: 3px solid #AAAAAA;
+  padding: 3px 2px;
+}
+
+
+table.blueTable tbody td {
+  font-size: 15px;
+  font-weight: bold;
+}
+
+
+
+table.blueTable tr:nth-child(even) {
+  background: #D0E4F5;
+}
+
+table.blueTable thead {
+  background: #1C6EA4;
+  background: -moz-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+  background: -webkit-linear-gradient(top, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+  background: linear-gradient(to bottom, #5592bb 0%, #327cad 66%, #1C6EA4 100%);
+  border-bottom: 2px solid #444444;
+}
+table.blueTable thead th {
+  font-size: 15px;
+  font-weight: bold;
+  color: #FFFFFF;
+  text-align: center;
+  border-left: 2px solid #D0E4F5;
+}
+
+   </style>
+</head>
+<body>
+   <script language = "javascript" type = "text/javascript">
+      //var wsUri = "ws://echo.websocket.org/";
+	  var wsUri = "ws://localhost:1234/";
+      var output;
+	  var parsedResponse;
+	  var privMessageToUserID ;
+		var privMessageToUser ;
+      function init() {
+         output = document.getElementById("output");
+		 output.innerHTML="NOT CONNECTED";
+		 output.style.color = "red";
+		 output.style.fontWeight = "bold";
+		 //nodedaki disconnect olayi, bu obje destroy oldugu zaman saptiyor
+         websocket = new WebSocket(wsUri);
+         websocket.onopen = function(evt) {
+                output.innerHTML="CONNECTED";
+				output.style.color = "green"
+				//client sayfaya girer girmez sag tarafta online/offline listesini gorecek.
+				//BUna ek olarak Connection Statusunde bir degisiklik olursa CONNECTED yerine kırmızı NOT CONNECTED yazacak
+				//	ornegin: Node kapatilirsa veya herhangi bir sebepten connection düşerse.
+				
+				//User List ve Connection Status her iki saniyede bir guncellenecek.
+				refreshFunctions();
+				
+         };
+		 websocket.onmessage = function (event) {
+		   var demo = document.getElementById("demo");
+		   var privateMessageArea = document.getElementById("messagePrivateArea");
+		   var users = document.getElementById("users");
+           //demo.innerHTML+=event.data +"<br/>";
+		   parsedResponse = JSON.parse(event.data);
+		   
+		   if ( parsedResponse.to == "public"){
+		   demo.innerHTML+=" " + parsedResponse.from + " -> " + parsedResponse.to + "<br/>" + parsedResponse.message + "<br/>" ;
+		   }
+		   
+		   else {
+		   //private ama chat degilse. Refresh requesti client kendisi icin gonderiyor. Yani response da private olmali
+		   if (parsedResponse.purpose != "refresh")
+		   privateMessageArea.innerHTML+=" " + parsedResponse.from + " -> " + parsedResponse.to + "<br/>" + parsedResponse.message + "<br/>" ;
+		   }
+		   users.innerHTML = "";
+		 //  if (parsedResponse.purpose == "chat") {
+		  
+		   //UserList
+		   //Online userlar yesil, offline userlar ise kırmızı renkli gorunecekler
+		   var i=j=0;
+		   for( i=0; i< parsedResponse.userTotal; i++) {
+			for( j=0; j<parsedResponse.userList.length; j++){
+			if (i==parsedResponse.userID ){
+			//Bagli olan Userin kendisi
+			users.innerHTML += "<span style='color:blue' onclick='setPrivateMessageReceiverID("+i+',"ME"'+")'><b>" + i + "</b></span>" +  "</br>";
+					break;
+			}
+				else if ( i == parsedResponse.userList[j]) {
+				//Online olan userlar
+					users.innerHTML += "<span style='color:green' onclick='setPrivateMessageReceiverID("+i+',"PRIV"'+")'><b>" + i + "</b></span>" +  "</br>";
+					break;
+					}
+				
+					
+					
+			}
+			if ( i != parsedResponse.userList[j]){
+			//Offline olan userlar
+			
+			users.innerHTML += "<span style='color:red' onclick='warningOffline()'><b>" + i + "</b></span>" +  "</br>";
+			
+			}
+			
+			}
+		 //  }
+         }
+      }
+      window.addEventListener("load", init, false);
+	  
+	  function warningOffline()
+	  {
+	  window.alert("User is offline");
+	  }
+	  
+	  function refreshFunctions(){
+		checkConnectionStatus();
+		refreshUserList();
+		setTimeout(refreshFunctions, 2000);
+		}
+	  
+	  function refreshUserList() {
+		var data = {
+			"to": "server",
+			"text": "refreshList",
+			"date": Date.now()
+		};
+	  
+		var message = JSON.stringify(data);
+		
+		websocket.send(message);
+		
+	  }
+	  
+	  function checkConnectionStatus(){
+	  if( !(websocket.readyState == websocket.OPEN )){
+		output = document.getElementById("output");
+		output.innerHTML="NOT CONNECTED";
+		 output.style.color = "red";
+		 
+		
+		}
+		
+	  
+	  }
+	  function sendMessage() {
+		var textsend = document.getElementById("txt1");
+        //websocket.send(textsend.value);
+		/*
+		websocket.send(JSON.stringify({
+  id: "client1"
+}));*/
+
+// Tell the server we want to send something to the other client
+		var data = {
+			"to": "public",
+			"text": textsend.value,
+			"date": Date.now()
+		};
+		/*var data = { "type" : "text", "message" : "Hello" };*/
+		
+		//to Test
+		//demo.innerHTML+=JSON.stringify(data)+"<br/>";
+		var message = JSON.stringify(data);
+		
+		websocket.send(message);
+      }
+	  
+	  function setPrivateMessageReceiverID (toUser,who){
+	  privMessageToUserID = document.getElementById("messagePrivateUserID");
+		privMessageToUser = document.getElementById("messagePrivate");
+		if ( who =="ME"){
+		window.alert("You are trying to send a private message to yourself...")
+		}
+		else
+		privMessageToUserID.value=toUser;
+	  
+	  }
+	  function sendPrivateMessage() {
+	  //window.alert(toUser);
+		//var textsend = document.getElementById("txt1");
+
+		
+		privMessageToUserID = document.getElementById("messagePrivateUserID");
+		privMessageToUser = document.getElementById("messagePrivate");
+		if ( privMessageToUserID.value  == "undefined"  ||  privMessageToUserID.value  ==  ""  )
+		window.alert("no user selected. No message will be sent!");
+		else {
+		
+		
+		
+		var data = {
+			"to": privMessageToUserID.value,
+			"text": privMessageToUser.value,
+			"date": Date.now()
+		};
+		/*var data = { "type" : "text", "message" : "Hello" };*/
+		
+		//to Test
+		//demo.innerHTML+=JSON.stringify(data)+"<br/>";
+		var message = JSON.stringify(data);
+		
+		websocket.send(message);
+		}
+      }
+  
+   </script>
+   <h2>WebSocket Test</h2>
+   <div id = "output"></div>
+   <table class="blueTable">
+   <thead>
+   <tr>
+<th>Public Chat</th>
+<th>Private Chat</th>
+<th>User List</th>
+</tr>
+   </thead>
+   <tr>
+   <td>
+   <div id = "demo"></div>
+   </td>
+   
+   <td>
+   <div id = "messagePrivateArea"></div>
+   </td>
+   
+   <td rowspan="2">
+   <!--
+    <input type="text" id="txt1"> 
+	<button type="button" onclick="sendMessage()">Send</button>-->
+	<button onclick="refreshUserList()"value="Refresh">Refresh</button>
+	<div id = "users"></div>
+	<!--<p>test</p>-->
+   </td>
+   
+   
+   </tr>
+   
+   
+   
+   <tr>
+   <td>
+    <input type="text" id="txt1"> 
+	<button type="button" onclick="sendMessage()">Send</button>
+   </td>
+   
+   <td>
+   Click a User to Send Private Message
+   </br>
+   <input type="text" id="messagePrivateUserID" readonly />  
+   </br></br>
+   Message
+    <input type="text" id="messagePrivate" /> 
+	<button type="button" onclick="sendPrivateMessage()">Send</button>
+   </td>
+   
+   
+   </tr>
+   
+    
+   
+   
+   
+   </table>
+   
+   <!--
+   
+  
+   <button type="button" onclick="sendMessage()">Send</button>
+   <p id="demo"></p>
+-->
+   </body>
+</html>
